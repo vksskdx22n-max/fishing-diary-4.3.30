@@ -207,7 +207,7 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
     <div>
       <div class="header-title">🎣 Fishing Diary</div>
       <div style="font-size:16px;font-weight:600;color:#fff;opacity:.9;margin-top:4px;text-shadow:0 1px 3px rgba(0,0,0,.4);padding-left:1.6em">Laguna di Venezia</div>
-      <div style="font-size:12px;color:#fff;opacity:.85;margin-top:4px;padding-left:1.6em;letter-spacing:.05em;text-shadow:0 1px 3px rgba(0,0,0,.4)">vers. 4.3.30 · <a href="https://docs.google.com/forms/d/e/1FAIpQLSdixNuJt0e-KEVQgPTVMowOy4RxPMTRqrkozU_R-AoeFHy4zA/viewform?usp=header" target="_blank" style="color:#fff;opacity:.9;text-decoration:underline">✉️ Segnala un problema</a></div>
+      <div style="font-size:12px;color:#fff;opacity:.85;margin-top:4px;padding-left:1.6em;letter-spacing:.05em;text-shadow:0 1px 3px rgba(0,0,0,.4)">vers. 4.3.35 · <a href="https://docs.google.com/forms/d/e/1FAIpQLSdixNuJt0e-KEVQgPTVMowOy4RxPMTRqrkozU_R-AoeFHy4zA/viewform?usp=header" target="_blank" style="color:#fff;opacity:.9;text-decoration:underline">✉️ Segnala un problema</a></div>
       <div class="header-info" style="margin-top:8px">I dati vengono salvati nel browser. <b>Esporta</b> regolarmente in JSON/CSV per non perderli.</div>
     </div>
     <div class="header-pescatore">
@@ -230,6 +230,7 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
   <div class="tab" onclick="showPanel('mappa',this)">📍 Mappa</div>
   <div class="tab" onclick="showPanel('statistiche',this)">📊 Stats</div>
   <div class="tab" onclick="showPanel('previsione',this)">🔮 Previsione</div>
+  <div class="tab" onclick="showPanel('oracle',this)">🧠 Oracle</div>
 </div>
 
 <!-- GUIDA -->
@@ -700,6 +701,32 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
 </div>
 </div>
 
+<div id="panel-oracle" class="panel">
+  <div style="padding:16px 4px">
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">🧠 Oracle</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Consulta l'intelligenza artificiale. Oracle ricorda tutte le conversazioni precedenti e le incrocia con il tuo storico uscite.</div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Sessioni: <span id="oracle-count-sessioni" style="color:#60a5fa;font-weight:600">0</span> · Messaggi: <span id="oracle-count-messaggi" style="color:#60a5fa;font-weight:600">0</span></div>
+      <div id="oracle-storico" style="max-height:55vh;overflow-y:auto;margin-bottom:10px">
+        <div id="oracle-storico-vuoto" style="color:var(--muted);font-size:13px;padding:4px 0">Nessuna conversazione ancora.</div>
+      </div>
+    </div>
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <textarea id="oracle-input" placeholder="Es: Domani mattina alba, marea crescente, luna piena, vento leggero. Vale la pena uscire? Dove e con cosa?" style="width:100%;min-height:90px;padding:10px;background:var(--input);color:var(--text);border:0.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" onclick="consultaOracle()" style="flex:1;padding:10px;font-size:13px;font-weight:600">🧠 Consulta Oracle</button>
+        <button class="btn" onclick="oracleEsportaJSON()" style="flex:0 0 auto;padding:10px 14px;font-size:12px;background:#1e3a2a;color:#4ade80;border:0.5px solid rgba(74,222,128,0.2)">⬇ Export</button>
+        <button class="btn" onclick="oracleCancellaMemoria()" style="flex:0 0 auto;padding:10px 14px;font-size:12px;background:#3a1a1a;color:#f87171;border:0.5px solid rgba(248,113,113,0.2)">🗑</button>
+      </div>
+    </div>
+    <div id="oracle-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px">
+      <div style="font-size:24px;margin-bottom:6px">🧠</div>
+      <div>Oracle sta analizzando...</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;padding:10px;background:var(--card);border-radius:8px;border:0.5px solid var(--border)">ℹ️ La memoria è salvata localmente. Oracle incrocia le conversazioni passate con il tuo storico uscite reali.</div>
+  </div>
+</div>
+
 <script>
 var uscite=[],spots=[],cattureCorrenti=[],ventoDirCorr='',mareaCorr='',lunaCorr='',votoCorr=3;
 var mapInstance=null,spotMarkers=[],newSpotMarker=null;
@@ -743,6 +770,7 @@ function showPanel(id,el){
   if(id==='storico')renderStorico();
   if(id==='statistiche')renderStats();
   if(id==='previsione')initKNN();
+  if(id==='oracle') oracleCaricaMemoria();
 }
 function initStorage(){
   try{var r=localStorage.getItem('pesca_uscite');if(r)uscite=JSON.parse(r);}catch(e){uscite=[];}
@@ -1774,6 +1802,155 @@ function dlFile(c,n,t){var a=document.createElement('a');a.href=URL.createObject
   renderCattureCorrenti();
   rilevafaseLunare(true);
 })();
+// ===== ORACLE v2.0 — Groq + Memoria Persistente =====
+var GROQ_KEY   = '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';
+var GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
+var GROQ_MODEL = 'llama-3.3-70b-versatile';
+var ORACLE_STORAGE_KEY = 'oracle_memoria';
+var ORACLE_SESSION_KEY = 'oracle_memoria_sessione';
+var _oracleInizializzato = false;
+
+var ORACLE_SYSTEM = 'Sei Oracle, un assistente esperto di pesca alla spigola (branzino, Dicentrarchus labrax) nella Laguna di Venezia con tecnica spinning da barca.\n\nCONTESTO BIOLOGICO E LAGUNARE:\n- Laguna di Venezia circa 550 km2, tre bocche di porto: Lido, Malamocco, Chioggia\n- Fondali bassi 0.5-3m, canali navigabili fino a 10-15m, regime mesomareo escursione 50-80cm\n- La spigola e migratore marino eurialo, usa la laguna tutto l anno con intensita variabile\n- Prede principali: latterino (Atherina boyeri), gobidi, mugilidi, granchio, seppie giovanili\n- Zone produttive: bordi canali, imbocco ghebi e valli, strutture artificiali (bricole, porte valli), bassofondali con corrente\n\nSTAGIONALITA:\n- Gen-Feb: riproduzione, scarsa attivita predatoria, 7-10C\n- Mar: ripresa graduale, 9-12C\n- Apr-Mag: piena ripresa, ottimo spinning, 12-17C\n- Giu-Lug: attivita concentrata alba/tramonto, 20-26C\n- Ago: mese difficile, caldo estremo, 24-28C\n- Set-Ott: secondo picco stagionale, caccia intensa, 18-22C\n- Nov-Dic: buona attivita, aggregazione pre-riproduttiva, 12-16C\n\nVARIABILI CHIAVE (ordine importanza):\n1. Marea: crescente = spigole verso barene, calante = agguato alle imboccature\n2. Fase lunare: nuova e piena = piu attive\n3. Ora: alba e tramonto = picchi\n4. Stagione e temperatura acqua\n5. Vento: leggero favorevole, forte penalizzante\n6. Pressione: stabile/in aumento favorevole\n\nTECNICHE:\n- Jerkbait: recupero jerkato con pause, corrente e canali\n- Minnow: recupero lineare lento, acque basse\n- WTD: superficie, alba/tramonto, calma\n- Popper: superficie, pesci in caccia\n\nESCHE TOP (dati reali del pescatore):\n- Bassday Log Surf 124F: 25 catture, esca di punta\n- IMA x DUO Nabarone 125F/S: 11 catture, corrente forte\n- Zipbaits Agile 139F: 7 catture, crepuscolo\n- IMA Pugachev Cobra WTD: superficie, calma\n\nRicordi le conversazioni passate con questo pescatore e ne tieni conto. Rispondi in italiano, da pescatore a pescatore. Concreto e diretto.';
+
+var oracleMemoria  = [];
+var oracleSessione = [];
+
+function oracleInit() {
+  if (_oracleInizializzato) return;
+  _oracleInizializzato = true;
+  try { var r = localStorage.getItem(ORACLE_STORAGE_KEY); if(r) oracleMemoria = JSON.parse(r); } catch(e) { oracleMemoria = []; }
+  try {
+    var s = localStorage.getItem(ORACLE_SESSION_KEY);
+    if(s) { var rec = JSON.parse(s); if(rec && rec.length > 0) oracleSessione = rec; }
+  } catch(e) {}
+}
+
+function oracleCaricaMemoria() {
+  oracleInit();
+  oracleAggiornaContatori();
+  oracleRenderStorico();
+}
+
+function oracleSalvaMemoria() {
+  try { localStorage.setItem(ORACLE_STORAGE_KEY, JSON.stringify(oracleMemoria)); } catch(e) {}
+}
+function oracleSalvaSessioneCorrente() {
+  try { localStorage.setItem(ORACLE_SESSION_KEY, JSON.stringify(oracleSessione)); } catch(e) {}
+}
+
+function oracleAggiornaContatori() {
+  var totMsg  = oracleMemoria.reduce(function(acc,s){ return acc + s.messaggi.length; }, 0) + oracleSessione.length;
+  var totSess = oracleMemoria.length + (oracleSessione.length > 0 ? 1 : 0);
+  var cs = document.getElementById('oracle-count-sessioni');
+  var cm = document.getElementById('oracle-count-messaggi');
+  if(cs) cs.textContent = totSess;
+  if(cm) cm.textContent = totMsg;
+}
+
+function oracleEscapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function oracleRenderStorico() {
+  var container = document.getElementById('oracle-storico');
+  var vuoto     = document.getElementById('oracle-storico-vuoto');
+  if (!container) return;
+  var tutti = [];
+  oracleMemoria.forEach(function(s){ tutti = tutti.concat(s.messaggi); });
+  oracleSessione.forEach(function(m){ tutti.push(m); });
+  if (tutti.length === 0) { if(vuoto) vuoto.style.display='block'; return; }
+  if(vuoto) vuoto.style.display='none';
+  var html = '';
+  tutti.forEach(function(m) {
+    if (m.role === 'user') {
+      html += '<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;color:#60a5fa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Tu</div><div style="font-size:13px;line-height:1.6;padding:9px 11px;border-radius:8px;background:#1e2a3a;color:#c9d1e0;white-space:pre-wrap">' + oracleEscapeHtml(m.content) + '</div></div>';
+    } else if (m.role === 'assistant') {
+      html += '<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;color:#4ade80;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">Oracle</div><div style="font-size:13px;line-height:1.7;padding:9px 11px;border-radius:8px;background:#0f2a1a;color:#c6f0d0;white-space:pre-wrap">' + oracleEscapeHtml(m.content) + '</div></div>';
+    }
+  });
+  container.innerHTML = html;
+  container.scrollTop = container.scrollHeight;
+}
+
+function buildStoricoUscite() {
+  if (!uscite || uscite.length === 0) return '\n\nSTORICO USCITE: Nessuna uscita registrata.';
+  var testo = '\n\nSTORICO USCITE REALI (' + uscite.length + ' uscite):\n';
+  uscite.slice(-30).forEach(function(u) {
+    var c = (u.catture||[]).length;
+    testo += '- '+(u.data||'')+' | '+(u.spot||'')+' | Marea: '+(u.marea||'')+' | Luna: '+(u.luna||'')+' | Vento: '+(u.vento||'')+'km/h | Cielo: '+(u.cielo||'')+' | Catture: '+c+' spigole';
+    if(u.note) testo += ' | Note: '+u.note;
+    testo += '\n';
+  });
+  var tot  = uscite.reduce(function(acc,u){ return acc+(u.catture||[]).length; },0);
+  var prod = uscite.filter(function(u){ return (u.catture||[]).length>0; }).length;
+  testo += 'Riepilogo: '+tot+' spigole in '+uscite.length+' uscite ('+Math.round(prod/uscite.length*100)+'% produttive).';
+  return testo;
+}
+
+function consultaOracle() {
+  var domanda = document.getElementById('oracle-input').value.trim();
+  if (!domanda) { alert('Scrivi una domanda prima di consultare Oracle.'); return; }
+  oracleSessione.push({ role: 'user', content: domanda });
+  document.getElementById('oracle-input').value = '';
+  oracleRenderStorico();
+  oracleAggiornaContatori();
+  document.getElementById('oracle-loading').style.display = 'block';
+  var systemContent = ORACLE_SYSTEM + buildStoricoUscite();
+  var messaggi = [{ role: 'system', content: systemContent }];
+  oracleMemoria.forEach(function(s){ messaggi = messaggi.concat(s.messaggi); });
+  messaggi = messaggi.concat(oracleSessione);
+  fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+    body: JSON.stringify({ model: GROQ_MODEL, messages: messaggi, temperature: 0.7, max_tokens: 1024 })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    document.getElementById('oracle-loading').style.display = 'none';
+    var testo = '';
+    try { testo = data.choices[0].message.content; } catch(e) { testo = 'Errore nella risposta.\n\nDebug: ' + JSON.stringify(data); }
+    oracleSessione.push({ role: 'assistant', content: testo });
+    oracleSalvaSessioneCorrente();
+    oracleRenderStorico();
+    oracleAggiornaContatori();
+  })
+  .catch(function(err){
+    document.getElementById('oracle-loading').style.display = 'none';
+    oracleSessione.push({ role: 'assistant', content: 'Errore di connessione: ' + err.message });
+    oracleRenderStorico();
+    oracleAggiornaContatori();
+  });
+}
+
+function oracleEsportaJSON() {
+  var dati = { esportato: new Date().toISOString(), sessioni: oracleMemoria, sessioneAperta: oracleSessione };
+  var blob = new Blob([JSON.stringify(dati, null, 2)], {type:'application/json'});
+  var url  = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'oracle_memoria_'+new Date().toISOString().split('T')[0]+'.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function oracleCancellaMemoria() {
+  if (!confirm('Cancellare tutta la memoria di Oracle? Operazione irreversibile.')) return;
+  oracleMemoria = []; oracleSessione = [];
+  localStorage.removeItem(ORACLE_STORAGE_KEY);
+  localStorage.removeItem(ORACLE_SESSION_KEY);
+  oracleAggiornaContatori();
+  oracleRenderStorico();
+}
+
+window.addEventListener('beforeunload', function() {
+  if (oracleSessione.length > 0) {
+    oracleMemoria.push({ data: new Date().toISOString().split('T')[0], messaggi: oracleSessione });
+    oracleSalvaMemoria();
+    localStorage.removeItem(ORACLE_SESSION_KEY);
+  }
+});
+
+oracleInit();
+// ===== FINE ORACLE v2.0 =====
+
 </script>
 </body>
 </html>
