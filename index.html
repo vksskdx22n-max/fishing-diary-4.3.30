@@ -207,7 +207,7 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
     <div>
       <div class="header-title">🎣 Fishing Diary</div>
       <div style="font-size:16px;font-weight:600;color:#fff;opacity:.9;margin-top:4px;text-shadow:0 1px 3px rgba(0,0,0,.4);padding-left:1.6em">Laguna di Venezia</div>
-      <div style="font-size:12px;color:#fff;opacity:.85;margin-top:4px;padding-left:1.6em;letter-spacing:.05em;text-shadow:0 1px 3px rgba(0,0,0,.4)">vers. 4.3.35 · <a href="https://docs.google.com/forms/d/e/1FAIpQLSdixNuJt0e-KEVQgPTVMowOy4RxPMTRqrkozU_R-AoeFHy4zA/viewform?usp=header" target="_blank" style="color:#fff;opacity:.9;text-decoration:underline">✉️ Segnala un problema</a></div>
+      <div style="font-size:12px;color:#fff;opacity:.85;margin-top:4px;padding-left:1.6em;letter-spacing:.05em;text-shadow:0 1px 3px rgba(0,0,0,.4)">vers. 4.3.36 · <a href="https://docs.google.com/forms/d/e/1FAIpQLSdixNuJt0e-KEVQgPTVMowOy4RxPMTRqrkozU_R-AoeFHy4zA/viewform?usp=header" target="_blank" style="color:#fff;opacity:.9;text-decoration:underline">✉️ Segnala un problema</a></div>
       <div class="header-info" style="margin-top:8px">I dati vengono salvati nel browser. <b>Esporta</b> regolarmente in JSON/CSV per non perderli.</div>
     </div>
     <div class="header-pescatore">
@@ -705,12 +705,34 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
   <div style="padding:16px 4px">
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">🧠 Oracle</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Consulta l'intelligenza artificiale. Oracle ricorda tutte le conversazioni precedenti e le incrocia con il tuo storico uscite.</div>
+
+    <!-- CONFIGURAZIONE KEY -->
+    <div id="oracle-config-card" style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">🔑 Configurazione</div>
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Groq API Key <span style="color:#5a6478">(da <a href="https://console.groq.com/keys" target="_blank" style="color:#60a5fa">console.groq.com</a>)</span></label>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="oracle-key-input" type="password" placeholder="gsk_..." style="flex:1;padding:8px 10px;background:var(--input);color:var(--text);border:0.5px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace">
+        <button class="btn" onclick="oracleSalvaKey()" style="flex:0 0 auto;padding:8px 14px;font-size:12px;font-weight:600">Salva</button>
+      </div>
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Modello</label>
+      <div class="sel-wrap" style="margin-bottom:8px">
+        <select id="oracle-model-select" style="width:100%;padding:8px 10px;background:var(--input);color:var(--text);border:0.5px solid var(--border);border-radius:8px;font-size:13px" onchange="oracleSalvaModello()">
+          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — ragionamento (1.000 req/giorno)</option>
+          <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — veloce (14.400 req/giorno)</option>
+        </select>
+      </div>
+      <div id="oracle-key-status" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+
+    <!-- STORICO -->
     <div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Sessioni: <span id="oracle-count-sessioni" style="color:#60a5fa;font-weight:600">0</span> · Messaggi: <span id="oracle-count-messaggi" style="color:#60a5fa;font-weight:600">0</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Sessioni: <span id="oracle-count-sessioni" style="color:#60a5fa;font-weight:600">0</span> · Messaggi: <span id="oracle-count-messaggi" style="color:#60a5fa;font-weight:600">0</span> · Richieste rimaste oggi: <span id="oracle-richieste-rimaste" style="color:#4ade80;font-weight:600">—</span></div>
       <div id="oracle-storico" style="max-height:55vh;overflow-y:auto;margin-bottom:10px">
         <div id="oracle-storico-vuoto" style="color:var(--muted);font-size:13px;padding:4px 0">Nessuna conversazione ancora.</div>
       </div>
     </div>
+
+    <!-- INPUT -->
     <div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
       <textarea id="oracle-input" placeholder="Es: Domani mattina alba, marea crescente, luna piena, vento leggero. Vale la pena uscire? Dove e con cosa?" style="width:100%;min-height:90px;padding:10px;background:var(--input);color:var(--text);border:0.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.5"></textarea>
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -719,11 +741,12 @@ if(localStorage.getItem('fd_pwd_ok')===_PWD_HASH){
         <button class="btn" onclick="oracleCancellaMemoria()" style="flex:0 0 auto;padding:10px 14px;font-size:12px;background:#3a1a1a;color:#f87171;border:0.5px solid rgba(248,113,113,0.2)">🗑</button>
       </div>
     </div>
+
     <div id="oracle-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px">
       <div style="font-size:24px;margin-bottom:6px">🧠</div>
       <div>Oracle sta analizzando...</div>
     </div>
-    <div style="font-size:11px;color:var(--muted);line-height:1.6;padding:10px;background:var(--card);border-radius:8px;border:0.5px solid var(--border)">ℹ️ La memoria è salvata localmente. Oracle incrocia le conversazioni passate con il tuo storico uscite reali.</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;padding:10px;background:var(--card);border-radius:8px;border:0.5px solid var(--border)">ℹ️ La memoria è salvata localmente. La key non lascia mai il tuo browser.</div>
   </div>
 </div>
 
@@ -1803,9 +1826,9 @@ function dlFile(c,n,t){var a=document.createElement('a');a.href=URL.createObject
   rilevafaseLunare(true);
 })();
 // ===== ORACLE v2.0 — Groq + Memoria Persistente =====
-var GROQ_KEY   = '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';
 var GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-var GROQ_MODEL = 'llama-3.3-70b-versatile';
+var GROQ_KEY_STORAGE   = 'oracle_groq_key';
+var GROQ_MODEL_STORAGE = 'oracle_groq_model';
 var ORACLE_STORAGE_KEY = 'oracle_memoria';
 var ORACLE_SESSION_KEY = 'oracle_memoria_sessione';
 var _oracleInizializzato = false;
@@ -1825,8 +1848,41 @@ function oracleInit() {
   } catch(e) {}
 }
 
+function oracleGetKey() {
+  return localStorage.getItem(GROQ_KEY_STORAGE) || '';
+}
+function oracleGetModello() {
+  return localStorage.getItem(GROQ_MODEL_STORAGE) || 'llama-3.3-70b-versatile';
+}
+function oracleSalvaKey() {
+  var k = document.getElementById('oracle-key-input').value.trim();
+  if (!k) { alert('Inserisci una API key valida.'); return; }
+  localStorage.setItem(GROQ_KEY_STORAGE, k);
+  document.getElementById('oracle-key-input').value = '';
+  oracleAggiornaKeyStatus();
+}
+function oracleSalvaModello() {
+  var m = document.getElementById('oracle-model-select').value;
+  localStorage.setItem(GROQ_MODEL_STORAGE, m);
+}
+function oracleAggiornaKeyStatus() {
+  var k = oracleGetKey();
+  var st = document.getElementById('oracle-key-status');
+  var sel = document.getElementById('oracle-model-select');
+  if (!st) return;
+  if (k) {
+    st.textContent = '✓ Key salvata (' + k.substring(0,8) + '…)';
+    st.style.color = '#4ade80';
+  } else {
+    st.textContent = '⚠ Nessuna key configurata — inserisci la tua Groq API key per usare Oracle.';
+    st.style.color = '#f87171';
+  }
+  if (sel) sel.value = oracleGetModello();
+}
+
 function oracleCaricaMemoria() {
   oracleInit();
+  oracleAggiornaKeyStatus();
   oracleAggiornaContatori();
   oracleRenderStorico();
 }
@@ -1888,6 +1944,7 @@ function buildStoricoUscite() {
 }
 
 function consultaOracle() {
+  if (!oracleGetKey()) { alert('Configura la tua Groq API key nella sezione Configurazione prima di usare Oracle.'); return; }
   var domanda = document.getElementById('oracle-input').value.trim();
   if (!domanda) { alert('Scrivi una domanda prima di consultare Oracle.'); return; }
   oracleSessione.push({ role: 'user', content: domanda });
@@ -1901,10 +1958,17 @@ function consultaOracle() {
   messaggi = messaggi.concat(oracleSessione);
   fetch(GROQ_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
-    body: JSON.stringify({ model: GROQ_MODEL, messages: messaggi, temperature: 0.7, max_tokens: 1024 })
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + oracleGetKey() },
+    body: JSON.stringify({ model: oracleGetModello(), messages: messaggi, temperature: 0.7, max_tokens: 1024 })
   })
-  .then(function(r){ return r.json(); })
+  .then(function(r){
+    var rimaste = r.headers.get('x-ratelimit-remaining-requests');
+    if (rimaste !== null) {
+      var el = document.getElementById('oracle-richieste-rimaste');
+      if(el) el.textContent = rimaste;
+    }
+    return r.json();
+  })
   .then(function(data){
     document.getElementById('oracle-loading').style.display = 'none';
     var testo = '';
